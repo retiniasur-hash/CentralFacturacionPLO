@@ -375,8 +375,9 @@ td{padding:13px 14px;vertical-align:middle}
       <div class="bar">
         <div class="search"><span class="si">⌕</span><input id="q" placeholder="Buscar por cliente, RUT u orden…"></div>
         <button class="chip on" data-f="all">Todas</button>
-        <button class="chip" data-f="transferencia">Solo transferencia</button>
-        <button class="chip" data-f="webpay">Solo Webpay</button>
+        <button class="chip" data-f="transferencia">Transferencia</button>
+        <button class="chip" data-f="khipu">Khipu</button>
+        <button class="chip" data-f="efectivo">Efectivo</button>
       </div>
       <div class="tw">
         <div class="tscroll">
@@ -444,15 +445,29 @@ td{padding:13px 14px;vertical-align:middle}
 const CLP = n => '$' + n.toLocaleString('es-CL');
 const IVA = .19;
 
-const FLOW = ['esperando_comp','por_verificar','pago_ok','facturada','preparacion','despachada'];
+const FLOWS = {
+  Transferencia:['esperando_comp','por_verificar','pago_ok','facturada','preparacion','despachada'],
+  Khipu:['pago_ok','facturada','preparacion','despachada'],
+  Efectivo:['reservado','listo_retiro','pago_ok','facturada','entregada']
+};
+const LABELS = {
+  Transferencia:['Comprobante','Pago','Factura','Despacho','Guía','Envío'],
+  Khipu:['Pago','Factura','Despacho','Guía'],
+  Efectivo:['Reserva','Preparado','Pago','Factura','Entrega']
+};
 const META = {
   esperando_comp:{l:'Esperando comprobante',c:'s-esp'},
   por_verificar:{l:'Comprobante por revisar',c:'s-ver'},
+  reservado:{l:'Reservado 48 h',c:'s-esp'},
+  listo_retiro:{l:'Listo para retiro',c:'s-ver'},
   pago_ok:{l:'Pago confirmado',c:'s-pag'},
   facturada:{l:'Facturada',c:'s-fac'},
   preparacion:{l:'En preparación',c:'s-des'},
-  despachada:{l:'Despachada',c:'s-fin'}
+  despachada:{l:'Despachada',c:'s-fin'},
+  entregada:{l:'Entregada',c:'s-fin'}
 };
+const fl = o => FLOWS[o.pago];
+const fi = o => fl(o).indexOf(o.est);
 const TIER = {Platino:'t-plat',Oro:'t-oro',Estándar:'t-est'};
 
 let FOLIO_33 = 2418, FOLIO_52 = 883, TRACK = 5842190;
@@ -488,8 +503,14 @@ let O = [
   {id:'OC-2026-0161',cli:'Farmacia Del Puerto',rut:'76.339.771-4',tier:'Estándar',con:'Luis Arancibia',mail:'larancibia@fdelpuerto.cl',dir:'Blanco 1120, Valparaíso',fecha:'28 jul 2026 · 14:22',pago:'Transferencia',banco:'Banco de Chile',est:'esperando_comp',comp:null,rech:'No se encuentra el abono en la cartola',
    items:[it(4,25),it(3,40)],docs:[],log:[{t:'28 jul · 14:22',x:'Orden recibida desde el portal'},{t:'28 jul · 15:05',x:'Cliente subió comprobante desde el portal'},{t:'28 jul · 16:48',x:'Comprobante rechazado — no se encuentra el abono en la cartola'}]},
 
-  {id:'OC-2026-0160',cli:'Farmacia San Nicolás',rut:'76.110.487-5',tier:'Oro',con:'Ignacio Fuentes',mail:'ifuentes@fsn.cl',dir:'Balmaceda 331, Talca',fecha:'28 jul 2026 · 16:35',pago:'Webpay',banco:'—',est:'pago_ok',comp:{wp:'WP-77410299'},
-   items:[it(6,20,.07),it(2,4,.07)],docs:[],log:[{t:'28 jul · 16:35',x:'Orden recibida desde el portal'},{t:'28 jul · 16:35',x:'Pago confirmado automáticamente por Webpay'}]},
+  {id:'OC-2026-0155',cli:'Farmacia Santa Elena',rut:'76.702.881-3',tier:'Estándar',con:'Ana Vergara',mail:'avergara@fsantaelena.cl',dir:'Retiro en bodega PLO',fecha:'29 jul 2026 · 10:18',pago:'Efectivo',banco:'—',est:'reservado',comp:null,vence:'31 jul 2026 · 10:18',horas:34,
+   items:[it(0,35),it(7,50)],docs:[],log:[{t:'29 jul · 10:18',x:'Orden reservada en el portal · retiro en bodega'}]},
+
+  {id:'OC-2026-0154',cli:'Botica Central Maipú',rut:'77.019.336-6',tier:'Oro',con:'Jorge Salazar',mail:'jsalazar@boticacentral.cl',dir:'Retiro en bodega PLO',fecha:'28 jul 2026 · 12:40',pago:'Efectivo',banco:'—',est:'listo_retiro',comp:null,vence:'30 jul 2026 · 12:40',horas:9,
+   items:[it(5,18,.07),it(4,22,.07)],docs:[],log:[{t:'28 jul · 12:40',x:'Orden reservada en el portal · retiro en bodega'},{t:'28 jul · 16:05',x:'Pedido preparado y separado en bodega'}]},
+
+  {id:'OC-2026-0160',cli:'Farmacia San Nicolás',rut:'76.110.487-5',tier:'Oro',con:'Ignacio Fuentes',mail:'ifuentes@fsn.cl',dir:'Balmaceda 331, Talca',fecha:'28 jul 2026 · 16:35',pago:'Khipu',banco:'—',est:'pago_ok',comp:{kh:'KH-8841-77410299',bancoOrig:'Banco de Chile',acred:'28 jul 2026 · 16:36'},
+   items:[it(6,20,.07),it(2,4,.07)],docs:[],log:[{t:'28 jul · 16:35',x:'Orden recibida desde el portal'},{t:'28 jul · 16:36',x:'Pago acreditado por Khipu · KH-8841-77410299'}]},
 
   {id:'OC-2026-0159',cli:'Distribuidora Salud Norte',rut:'77.845.223-1',tier:'Platino',con:'Paula Rivas',mail:'privas@saludnorte.cl',dir:'Baquedano 1580, Antofagasta',fecha:'28 jul 2026 · 11:20',pago:'Transferencia',banco:'Banco Estado',est:'pago_ok',
    comp:{arch:'trf-saludnorte.jpg',bancoOrig:'Banco Estado',nOp:'88420190',fechaTrf:'28 jul 2026 · 11:35',declDelta:0,subido:'28 jul 2026 · 11:41',verif:'TRF-8842019'},
@@ -503,8 +524,11 @@ let O = [
    comp:{arch:'trf-austral.png',bancoOrig:'Scotiabank',nOp:'88370041',fechaTrf:'27 jul 2026 · 10:30',declDelta:0,subido:'27 jul 2026 · 10:38',verif:'TRF-8837004'},
    items:[it(6,35,.07),it(5,28,.07),it(2,10,.07)],docs:[{tipo:33,folio:2416,track:5842185,monto:0}],log:[{t:'27 jul · 10:11',x:'Orden recibida desde el portal'},{t:'27 jul · 10:38',x:'Cliente subió comprobante desde el portal'},{t:'27 jul · 12:40',x:'Abono confirmado en cartola — comp. TRF-8837004'},{t:'27 jul · 13:15',x:'Factura 33 folio 2416 aceptada por el SII'},{t:'27 jul · 13:20',x:'Orden de despacho generada para bodega'}]},
 
-  {id:'OC-2026-0156',cli:'Farmacia Belén Ltda.',rut:'76.432.109-8',tier:'Platino',con:'María Contreras',mail:'compras@fbelen.cl',dir:'Av. Providencia 1245, Providencia',fecha:'26 jul 2026 · 09:30',pago:'Webpay',banco:'—',est:'despachada',comp:{wp:'WP-77409112'},
-   items:[it(0,60,.12),it(7,100,.12)],docs:[{tipo:33,folio:2414,track:5842171,monto:0},{tipo:52,folio:882,track:5842174,monto:0}],log:[{t:'26 jul · 09:30',x:'Orden recibida desde el portal'},{t:'26 jul · 09:30',x:'Pago confirmado automáticamente por Webpay'},{t:'26 jul · 10:15',x:'Factura 33 folio 2414 aceptada por el SII'},{t:'26 jul · 10:18',x:'Orden de despacho generada para bodega'},{t:'26 jul · 15:40',x:'Guía 52 folio 882 aceptada por el SII'}]}
+  {id:'OC-2026-0156',cli:'Farmacia Belén Ltda.',rut:'76.432.109-8',tier:'Platino',con:'María Contreras',mail:'compras@fbelen.cl',dir:'Av. Providencia 1245, Providencia',fecha:'26 jul 2026 · 09:30',pago:'Khipu',banco:'—',est:'despachada',comp:{kh:'KH-8839-77409112',bancoOrig:'Santander',acred:'26 jul 2026 · 09:31'},
+   items:[it(0,60,.12),it(7,100,.12)],docs:[{tipo:33,folio:2414,track:5842171,monto:0},{tipo:52,folio:882,track:5842174,monto:0}],log:[{t:'26 jul · 09:30',x:'Orden recibida desde el portal'},{t:'26 jul · 09:31',x:'Pago acreditado por Khipu · KH-8839-77409112'},{t:'26 jul · 10:15',x:'Factura 33 folio 2414 aceptada por el SII'},{t:'26 jul · 10:18',x:'Orden de despacho generada para bodega'},{t:'26 jul · 15:40',x:'Guía 52 folio 882 aceptada por el SII'}]},
+
+  {id:'OC-2026-0153',cli:'Farmacia Los Aromos',rut:'76.884.215-7',tier:'Estándar',con:'Patricia Soto',mail:'psoto@losaromos.cl',dir:'Retiro en bodega PLO',fecha:'25 jul 2026 · 11:05',pago:'Efectivo',banco:'—',est:'entregada',comp:{efectivo:180000,vuelto:0,recibe:'Patricia Soto',hora:'26 jul 2026 · 09:50'},
+   items:[it(4,20),it(0,30)],docs:[{tipo:33,folio:2413,track:5842168,monto:0}],log:[{t:'25 jul · 11:05',x:'Orden reservada en el portal · retiro en bodega'},{t:'25 jul · 15:20',x:'Pedido preparado y separado en bodega'},{t:'26 jul · 09:50',x:'Pago en efectivo recibido en bodega'},{t:'26 jul · 09:52',x:'Factura 33 folio 2413 aceptada por el SII'},{t:'26 jul · 09:55',x:'Mercadería entregada en bodega · retirada por el cliente'}]}
 ];
 
 const neto = o => o.items.reduce((s,i)=>s+i.pu*i.q,0);
@@ -516,15 +540,12 @@ let filt='all', sel=null, kpiF=null;
 
 /* ── KPIs ── */
 function kpis(){
-  const ec = O.filter(o=>o.est==='esperando_comp');
-  const pv = O.filter(o=>o.est==='por_verificar');
-  const pf = O.filter(o=>o.est==='pago_ok');
-  const pd = O.filter(o=>o.est==='facturada'||o.est==='preparacion');
   const K = [
-    {id:'esperando_comp',l:'Sin comprobante',v:ec.length,s:'El cliente aún no lo sube',b:'b-coral'},
-    {id:'por_verificar',l:'Por revisar',v:pv.length,s:'Comprobante recibido',b:'b-amber'},
-    {id:'pago_ok',l:'Por facturar',v:pf.length,s:'Pago confirmado en cartola',b:'b-teal'},
-    {id:'despacho',l:'Por despachar',v:pd.length,s:'Facturadas, esperando guía',b:'b-mint'}
+    {id:'esperando_comp',l:'Sin comprobante',v:O.filter(o=>o.est==='esperando_comp').length,s:'El cliente aún no lo sube',b:'b-coral'},
+    {id:'por_verificar',l:'Por revisar',v:O.filter(o=>o.est==='por_verificar').length,s:'Comprobante recibido',b:'b-amber'},
+    {id:'retiro',l:'Retiros pendientes',v:O.filter(o=>['reservado','listo_retiro'].includes(o.est)).length,s:'Efectivo · pago al retirar',b:'b-emerald'},
+    {id:'pago_ok',l:'Por facturar',v:O.filter(o=>o.est==='pago_ok').length,s:'Pago confirmado',b:'b-teal'},
+    {id:'despacho',l:'Por despachar',v:O.filter(o=>['facturada','preparacion'].includes(o.est)).length,s:'Facturadas, falta guía',b:'b-mint'}
   ];
   document.getElementById('kpis').innerHTML = K.map(k=>`
     <button class="kpi ${kpiF===k.id?'on':''}" data-k="${k.id}">
@@ -545,20 +566,22 @@ function render(){
   let L = O.filter(o=>{
     if(filt!=='all' && o.pago.toLowerCase()!==filt) return false;
     if(kpiF==='despacho' && !['facturada','preparacion'].includes(o.est)) return false;
-    if(kpiF && kpiF!=='despacho' && o.est!==kpiF) return false;
+    if(kpiF==='retiro' && !['reservado','listo_retiro'].includes(o.est)) return false;
+    if(kpiF && !['despacho','retiro'].includes(kpiF) && o.est!==kpiF) return false;
     if(q && !(o.cli+o.rut+o.id).toLowerCase().includes(q)) return false;
     return true;
   });
   document.getElementById('none').style.display = L.length?'none':'block';
   document.getElementById('rows').innerHTML = L.map(o=>{
-    const i = FLOW.indexOf(o.est), m = META[o.est];
+    const i = fi(o), m = META[o.est], F = fl(o);
+    const ic = {Transferencia:'⇄',Khipu:'⚡',Efectivo:'◉'}[o.pago];
     return `<tr tabindex="0" data-id="${o.id}">
       <td><span class="oid">${o.id}</span></td>
       <td><div class="cli">${o.cli}</div><div class="rut">${o.rut}</div></td>
       <td><span class="tier ${TIER[o.tier]}">${o.tier}</span></td>
-      <td><div class="pay"><span class="pi">${o.pago==='Transferencia'?'⇄':'▤'}</span>${o.pago}</div></td>
+      <td><div class="pay"><span class="pi">${ic}</span>${o.pago}</div></td>
       <td><span class="st ${m.c}"><i></i>${m.l}</span></td>
-      <td><div class="pipe">${FLOW.map((_,k)=>`<span class="${k<=i?'f':''}"></span>`).join('')}</div></td>
+      <td><div class="pipe">${F.map((_,k)=>`<span class="${k<=i?'f':''}"></span>`).join('')}</div></td>
       <td class="amt">${CLP(tot(o))}</td>
     </tr>`;
   }).join('');
@@ -622,13 +645,44 @@ function receipt(o){
 const RAZONES=['No se encuentra el abono en la cartola','El monto no coincide con la orden','Imagen ilegible o incompleta','Los datos no corresponden a esta orden','La transferencia está pendiente, no acreditada'];
 
 function payBlock(o){
-  const i=FLOW.indexOf(o.est);
+  const i=fi(o);
 
-  if(o.pago==='Webpay') return `<div class="vb ok">
-    <h4>Confirmado por Webpay</h4>
-    <p>El gateway confirmó el pago al momento de la compra. No pasa por revisión manual.</p>
-    <div class="grid2"><div class="f"><p class="fl">Referencia</p><p class="fv m">${o.comp.wp}</p></div>
-    <div class="f"><p class="fl">Medio</p><p class="fv">Webpay Plus</p></div></div></div>`;
+  if(o.pago==='Khipu') return `<div class="vb ok">
+    <h4>Acreditado por Khipu</h4>
+    <p>Khipu confirmó la transferencia al momento de la compra. No pasa por revisión manual ni por cartola.</p>
+    <div class="grid2">
+      <div class="f"><p class="fl">ID Khipu</p><p class="fv m">${o.comp.kh}</p></div>
+      <div class="f"><p class="fl">Banco origen</p><p class="fv">${o.comp.bancoOrig}</p></div>
+      <div class="f" style="grid-column:1/-1"><p class="fl">Acreditado</p><p class="fv m">${o.comp.acred}</p></div>
+    </div></div>`;
+
+  if(o.pago==='Efectivo'){
+    if(i>=2) return `<div class="vb ok">
+      <h4>Pagado en efectivo al retirar</h4>
+      <p>El pago se recibió en bodega al momento de la entrega.</p>
+      <div class="grid2">
+        <div class="f"><p class="fl">Efectivo recibido</p><p class="fv m">${CLP(o.comp.efectivo)}</p></div>
+        <div class="f"><p class="fl">Vuelto</p><p class="fv m">${CLP(o.comp.vuelto)}</p></div>
+        <div class="f"><p class="fl">Recibido de</p><p class="fv">${o.comp.recibe}</p></div>
+        <div class="f"><p class="fl">Hora</p><p class="fv m" style="font-size:11.5px">${o.comp.hora}</p></div>
+      </div></div>`;
+
+    const urg = o.horas<=12;
+    return `<div class="vb ${urg?'':''}" style="${urg?'border-color:rgba(251,113,133,.35);background:rgba(251,113,133,.05)':''}">
+      <h4>Reserva con pago al retirar</h4>
+      <p>${o.est==='reservado'
+        ? `El pedido está reservado y aún no se prepara en bodega. Se cobra ${CLP(tot(o))} en efectivo cuando el cliente venga a retirar.`
+        : `El pedido está preparado y separado. Falta que el cliente venga a pagar y retirar.`}</p>
+      <div class="grid2" style="margin-bottom:11px">
+        <div class="f"><p class="fl">Vence la reserva</p><p class="fv m" style="font-size:11.5px;${urg?'color:var(--coral)':''}">${o.vence}</p></div>
+        <div class="f"><p class="fl">Quedan</p><p class="fv" style="${urg?'color:var(--coral)':''}">${o.horas} horas</p></div>
+      </div>
+      ${urg?`<div class="alert"><span class="aico">!</span><p>La reserva vence en menos de 12 horas. Si el cliente no retira, hay que liberar el stock y avisarle.</p></div>`:''}
+      <div class="rj" style="border:none;padding:0;margin-top:11px">
+        <button class="btn b-rej b-sm" id="bLib" style="width:100%">Liberar reserva y devolver stock</button>
+      </div>
+    </div>`;
+  }
 
   if(o.est==='esperando_comp') return `<div class="nocp">
     <h4>El cliente aún no sube el comprobante</h4>
@@ -668,11 +722,60 @@ function payBlock(o){
 }
 
 const STEPS=['Comprobante','Pago','Factura','Despacho','Guía','Envío'];
+function actsEnvio(o,i,hasF,hasG,pagado){
+  const iOD = fl(o).indexOf('preparacion');
+  return `
+    <div class="act ${hasF?'done':pagado?'rdy':''}">
+      <div class="ai">${hasF?'✓':'33'}</div>
+      <div class="at"><strong>Emitir factura electrónica</strong><span>${hasF?`Folio ${o.docs.find(d=>d.tipo===33).folio} · aceptada por el SII`:pagado?'Listo para emitir · DTE 33':'Requiere el pago confirmado'}</span></div>
+      ${hasF?'':`<button class="btn b-pri b-sm" id="bFac" ${pagado?'':'disabled'}>Emitir</button>`}
+    </div>
+    <div class="act ${i>=iOD?'done':hasF?'rdy':''}">
+      <div class="ai">${i>=iOD?'✓':'◫'}</div>
+      <div class="at"><strong>Generar orden de despacho</strong><span>${i>=iOD?'Entregada a bodega':hasF?'Listo para generar · documento interno':'Requiere la factura emitida'}</span></div>
+      ${i>=iOD?'':`<button class="btn b-gho b-sm" id="bOD" ${hasF?'':'disabled'}>Generar</button>`}
+    </div>
+    <div class="act ${hasG?'done':i>=iOD?'rdy':''}">
+      <div class="ai">${hasG?'✓':'52'}</div>
+      <div class="at"><strong>Emitir guía de despacho</strong><span>${hasG?`Folio ${o.docs.find(d=>d.tipo===52).folio} · aceptada por el SII`:i>=iOD?`Listo para emitir · DTE 52 ref. folio ${hasF?o.docs.find(d=>d.tipo===33).folio:'—'}`:'Requiere la orden de despacho'}</span></div>
+      ${hasG?'':`<button class="btn b-pri b-sm" id="bGui" ${i>=iOD?'':'disabled'}>Emitir</button>`}
+    </div>`;
+}
+
+function actsRetiro(o,i,hasF){
+  return `
+    <div class="act ${i>=1?'done':'rdy'}">
+      <div class="ai">${i>=1?'✓':'◫'}</div>
+      <div class="at"><strong>Preparar pedido en bodega</strong><span>${i>=1?'Preparado y separado':'Separar la mercadería y dejarla lista para el retiro'}</span></div>
+      ${i>=1?'':`<button class="btn b-gho b-sm" id="bPrep">Preparar</button>`}
+    </div>
+    <div class="act ${i>=2?'done':i===1?'rdy':''}">
+      <div class="ai">${i>=2?'✓':'◉'}</div>
+      <div class="at"><strong>Registrar pago en efectivo</strong><span>${i>=2?`${CLP(o.comp.efectivo)} recibidos en bodega`:i===1?`Cobrar ${CLP(tot(o))} al momento del retiro`:'Requiere el pedido preparado'}</span></div>
+      ${i>=2?'':`<button class="btn b-amb b-sm" id="bEfe" ${i===1?'':'disabled'}>Registrar</button>`}
+    </div>
+    <div class="act ${hasF?'done':i>=2?'rdy':''}">
+      <div class="ai">${hasF?'✓':'33'}</div>
+      <div class="at"><strong>Emitir factura electrónica</strong><span>${hasF?`Folio ${o.docs.find(d=>d.tipo===33).folio} · aceptada por el SII`:i>=2?'Listo para emitir · DTE 33':'Requiere el pago recibido'}</span></div>
+      ${hasF?'':`<button class="btn b-pri b-sm" id="bFac" ${i>=2?'':'disabled'}>Emitir</button>`}
+    </div>
+    <div class="act ${i>=4?'done':hasF?'rdy':''}">
+      <div class="ai">${i>=4?'✓':'◈'}</div>
+      <div class="at"><strong>Marcar como entregado</strong><span>${i>=4?'Retirado por el cliente':hasF?'El cliente se lleva la mercadería con su factura':'Requiere la factura emitida'}</span></div>
+      ${i>=4?'':`<button class="btn b-pri b-sm" id="bEnt" ${hasF?'':'disabled'}>Entregar</button>`}
+    </div>
+    <div class="act" style="opacity:.55">
+      <div class="ai">52</div>
+      <div class="at"><strong>Guía de despacho</strong><span>No corresponde · en retiro la factura ampara el traslado</span></div>
+    </div>`;
+}
+
 function drawer(){
-  const o=sel, i=FLOW.indexOf(o.est);
+  const o=sel, i=fi(o), F=fl(o), STEPS=LABELS[o.pago];
   const hasF = o.docs.some(d=>d.tipo===33);
   const hasG = o.docs.some(d=>d.tipo===52);
-  const pagado = i>=1;
+  const pagado = o.pago==='Efectivo' ? i>=2 : i>=F.indexOf('pago_ok');
+  const retiro = o.pago==='Efectivo';
 
   document.getElementById('drB').innerHTML = `
   <div class="sec">
@@ -686,7 +789,7 @@ function drawer(){
       <div class="f"><p class="fl">Tier</p><p class="fv">${o.tier}</p></div>
       <div class="f"><p class="fl">Contacto</p><p class="fv">${o.con}</p></div>
       <div class="f"><p class="fl">Correo</p><p class="fv" style="font-size:12px">${o.mail}</p></div>
-      <div class="f" style="grid-column:1/-1"><p class="fl">Dirección de despacho</p><p class="fv">${o.dir}</p></div>
+      <div class="f" style="grid-column:1/-1"><p class="fl">${retiro?'Modalidad':'Dirección de despacho'}</p><p class="fv">${retiro?'Retiro en bodega PLO · pago al retirar':o.dir}</p></div>
     </div>
   </div>
 
@@ -713,23 +816,7 @@ function drawer(){
 
   <div class="sec">
     <p class="sec-t">Acciones</p>
-    <div class="acts">
-      <div class="act ${hasF?'done':pagado?'rdy':''}">
-        <div class="ai">${hasF?'✓':'33'}</div>
-        <div class="at"><strong>Emitir factura electrónica</strong><span>${hasF?`Folio ${o.docs.find(d=>d.tipo===33).folio} · aceptada por el SII`:pagado?'Listo para emitir · DTE 33':'Requiere el pago confirmado'}</span></div>
-        ${hasF?'':`<button class="btn b-pri b-sm" id="bFac" ${pagado?'':'disabled'}>Emitir</button>`}
-      </div>
-      <div class="act ${i>=3?'done':hasF&&i<3?'rdy':''}">
-        <div class="ai">${i>=3?'✓':'◫'}</div>
-        <div class="at"><strong>Generar orden de despacho</strong><span>${i>=3?'Entregada a bodega':hasF?'Listo para generar · documento interno':'Requiere la factura emitida'}</span></div>
-        ${i>=3?'':`<button class="btn b-gho b-sm" id="bOD" ${hasF?'':'disabled'}>Generar</button>`}
-      </div>
-      <div class="act ${hasG?'done':i>=3?'rdy':''}">
-        <div class="ai">${hasG?'✓':'52'}</div>
-        <div class="at"><strong>Emitir guía de despacho</strong><span>${hasG?`Folio ${o.docs.find(d=>d.tipo===52).folio} · aceptada por el SII`:i>=3?`Listo para emitir · DTE 52 ref. folio ${hasF?o.docs.find(d=>d.tipo===33).folio:'—'}`:'Requiere la orden de despacho'}</span></div>
-        ${hasG?'':`<button class="btn b-pri b-sm" id="bGui" ${i>=3?'':'disabled'}>Emitir</button>`}
-      </div>
-    </div>
+    <div class="acts">${retiro?actsRetiro(o,i,hasF):actsEnvio(o,i,hasF,hasG,pagado)}</div>
   </div>
 
   ${o.docs.length?`<div class="sec"><p class="sec-t">Documentos emitidos</p>
@@ -744,6 +831,19 @@ function drawer(){
 
   const b1=document.getElementById('bVer'); if(b1) b1.onclick=verify;
   const b5=document.getElementById('bRej'); if(b5) b5.onclick=reject;
+  const b7=document.getElementById('bPrep'); if(b7) b7.onclick=()=>{
+    sel.est='listo_retiro'; sel.log.push({t:stamp(),x:'Pedido preparado y separado en bodega'});
+    drawer(); render(); toast('Pedido listo para retiro');
+  };
+  const b8=document.getElementById('bEfe'); if(b8) b8.onclick=cash;
+  const b9=document.getElementById('bEnt'); if(b9) b9.onclick=()=>{
+    sel.est='entregada'; sel.log.push({t:stamp(),x:'Mercadería entregada en bodega · retirada por el cliente'});
+    drawer(); render(); toast('Entrega registrada');
+  };
+  const b10=document.getElementById('bLib'); if(b10) b10.onclick=()=>{
+    sel.log.push({t:stamp(),x:'Reserva liberada · stock devuelto al catálogo'});
+    toast('Reserva liberada · se avisó al cliente'); close(); render();
+  };
   const b6=document.getElementById('bRec'); if(b6) b6.onclick=()=>{
     sel.log.push({t:stamp(),x:'Recordatorio de comprobante enviado al cliente'});
     drawer(); toast('Recordatorio enviado a '+sel.mail);
@@ -754,6 +854,40 @@ function drawer(){
 }
 
 function stamp(){return new Date().toLocaleString('es-CL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).replace(',',' ·')}
+
+function cash(){
+  const o=sel, t=tot(o);
+  mc.innerHTML=`
+    <h3>Registrar pago en efectivo</h3>
+    <p class="msub">${o.cli} · ${o.id}</p>
+    <div class="res" style="border-color:var(--line-2);background:var(--panel);margin-bottom:16px">
+      <div class="rr"><span>Total a cobrar</span><span style="color:var(--mint);font-size:15px">${CLP(t)}</span></div>
+    </div>
+    <p class="sec-t">Efectivo recibido</p>
+    <input id="cEf" inputmode="numeric" placeholder="Monto que entrega el cliente" style="width:100%;background:rgba(0,0,0,.28);border:1px solid var(--line-2);border-radius:9px;padding:11px;color:var(--txt);font-family:var(--mono);font-size:14px;margin-bottom:10px">
+    <div id="cVu" style="min-height:44px"></div>
+    <p class="sec-t">Recibido de</p>
+    <input id="cRe" placeholder="Nombre de quien retira" value="${o.con}" style="width:100%;background:rgba(0,0,0,.28);border:1px solid var(--line-2);border-radius:9px;padding:11px;color:var(--txt);font-family:inherit;font-size:13px;margin-bottom:16px">
+    <div class="mf"><button class="btn b-gho b-sm" id="cCan">Cancelar</button><button class="btn b-amb b-sm" id="cOk" disabled>Registrar pago</button></div>`;
+  mo.classList.add('on');
+  const ef=document.getElementById('cEf'), vu=document.getElementById('cVu'), ok=document.getElementById('cOk');
+  ef.oninput=()=>{
+    const v=parseInt(ef.value.replace(/\D/g,''))||0;
+    const d=v-t;
+    ok.disabled = v<t;
+    vu.innerHTML = !v?'' : d>=0
+      ? `<div class="lane ok"><span class="ls">✓</span>Vuelto a entregar: <b style="margin-left:4px;font-family:var(--mono)">${CLP(d)}</b></div>`
+      : `<div class="lane" style="background:rgba(251,113,133,.09);color:#FDA4AF"><span class="ls">!</span>Faltan ${CLP(-d)} para completar el total</div>`;
+  };
+  ef.focus();
+  document.getElementById('cCan').onclick=closeMo;
+  ok.onclick=()=>{
+    const v=parseInt(ef.value.replace(/\D/g,''))||0;
+    o.comp={efectivo:v,vuelto:v-t,recibe:document.getElementById('cRe').value.trim()||o.con,hora:stamp()};
+    o.est='pago_ok'; o.log.push({t:stamp(),x:'Pago en efectivo recibido en bodega'});
+    closeMo(); drawer(); render(); toast('Pago en efectivo registrado');
+  };
+}
 
 function verify(){
   const v = document.getElementById('cmp').value.trim();
